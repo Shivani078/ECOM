@@ -88,25 +88,44 @@ const Dashboard = () => {
     }, [navigate]);
 
     const checkUserProfile = async (currentUser) => {
-        if (!APPWRITE_PROFILES_COLLECTION_ID) {
-            console.error("Profile check skipped: VITE_APPWRITE_PROFILES_COLLECTION_ID is not set.");
-            return;
-        }
-        console.log(`Checking profile for user UID: ${currentUser.uid}`);
-        try {
-            const profile = await databases.getDocument(APPWRITE_DB_ID, APPWRITE_PROFILES_COLLECTION_ID, currentUser.uid);
-            setUserProfile(profile);
-            console.log("User profile found and stored:", profile);
-        } catch (error) {
-            console.error("Error checking user profile:", error);
-            if (error.code === 404) {
-                console.log("Profile not found (404). Redirecting to /welcome");
-                setUserProfile(null); 
-            } else {
-                console.error("A different error occurred while checking profile. See details above.");
+    if (!APPWRITE_PROFILES_COLLECTION_ID) {
+        console.error("Profile check skipped: VITE_APPWRITE_PROFILES_COLLECTION_ID is not set.");
+        return;
+    }
+    console.log(`Checking profile for user UID: ${currentUser.uid}`);
+    try {
+        const profile = await databases.getDocument(APPWRITE_DB_ID, APPWRITE_PROFILES_COLLECTION_ID, currentUser.uid);
+        setUserProfile(profile);
+        console.log("User profile found and stored:", profile);
+    } catch (error) {
+        console.error("Error checking user profile:", error);
+        if (error.code === 404) {
+            console.log("Profile not found (404). Creating blank profile...");
+            const blankProfile = {
+                businessName: "",
+                ownerName: "",
+                pinCode: "",
+                address: "",
+                phone: "",
+                gstNumber: "",
+                categories: [],
+                email: currentUser.email
+            };
+            try {
+                const createdProfile = await databases.createDocument(
+                    APPWRITE_DB_ID,
+                    APPWRITE_PROFILES_COLLECTION_ID,
+                    currentUser.uid,
+                    blankProfile
+                );
+                setUserProfile(createdProfile);
+                console.log("Blank profile created:", createdProfile);
+            } catch (createError) {
+                console.error("Failed to create blank profile:", createError);
             }
         }
-    };
+    }
+};
 
     const fetchUserProducts = async (currentUser) => {
         if (!currentUser) {
