@@ -10,7 +10,7 @@ origins = [
     "http://127.0.0.1:5173",
     "https://buddy-j3f5.vercel.app",  # <-- Add your Vercel frontend URL here
     "https://test-f-ochre.vercel.app/",
-    "https://test-b-chi.vercel.app",
+    "https://ecom-chi-lac.vercel.app",
     "https://saathi-ai.vercel.app"
 ]
 
