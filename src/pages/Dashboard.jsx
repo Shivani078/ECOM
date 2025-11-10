@@ -101,7 +101,7 @@ const Dashboard = () => {
             console.error("Error checking user profile:", error);
             if (error.code === 404) {
                 console.log("Profile not found (404). Redirecting to /welcome");
-                navigate('/welcome');
+                setUserProfile(null); 
             } else {
                 console.error("A different error occurred while checking profile. See details above.");
             }
