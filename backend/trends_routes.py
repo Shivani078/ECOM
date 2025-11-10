@@ -18,24 +18,23 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY missing in environment variables")
+    raise ValueError("GROQ_API_KEY is missing in environment variables")
 
 router = APIRouter()
 groq_model = ChatGroq(model="llama-3.1-8b-instant", temperature=0.7, api_key=GROQ_API_KEY)
 
 # -------------------------------
-# Prompt Template
+# Prompt Template (Batch cities)
 # -------------------------------
 template = """
 You are an expert fashion and lifestyle trend analyst.
 
-Analyze the following search results about **{category} trends in {city}**, 
-and return logical insights based on local culture, season, and events.
+Analyze the following categories trends in these cities: {cities}, category: {category}.
 
-Return STRICT JSON in this format:
+Return STRICT JSON in this format for each city:
 [
   {{
-    "city": "{city}",
+    "city": "City Name",
     "trend": "Trend Name",
     "popularity": "High 🔥 / Medium ⚡ / Low ❄️",
     "change_pct": "45.2%",
@@ -46,8 +45,7 @@ Return STRICT JSON in this format:
   }}
 ]
 
-Search Results:
-{search_results}
+Provide JSON only.
 """
 prompt = PromptTemplate.from_template(template)
 
@@ -78,24 +76,35 @@ def assign_random_metrics():
         score = 20
     return pct, label, score
 
-async def process_city(city: str, category: str, search_results: str = ""):
-    """
-    Processes a single city using Groq to generate trends.
-    search_results can be provided or left empty.
-    """
+# -------------------------------
+# Cache dictionary (in-memory)
+# -------------------------------
+CACHE = {}
+
+# -------------------------------
+# Main endpoint (optimized)
+# -------------------------------
+@router.post("/")
+async def get_trends(request: TrendsRequest):
+    # Check cache first
+    cache_key = f"{','.join(sorted(request.cities))}:{request.category}"
+    if cache_key in CACHE:
+        return {"trends": CACHE[cache_key]}
+
     try:
+        # Batch all cities into a single Groq call
         def groq_call():
             runnable = prompt | groq_model | StrOutputParser()
             return runnable.invoke({
-                "city": city,
-                "category": category,
-                "search_results": search_results,
+                "cities": ", ".join(request.cities),
+                "category": request.category
             })
 
         response = await asyncio.to_thread(groq_call)
         cleaned = clean_json_response(response)
         parsed = json.loads(cleaned)
 
+        # Add metrics and fill missing fields
         for trend in parsed:
             pct = None
             if "change_pct" in trend:
@@ -128,16 +137,10 @@ async def process_city(city: str, category: str, search_results: str = ""):
                 if key not in trend or not isinstance(trend[key], list):
                     trend[key] = trend.get(key, []) if isinstance(trend.get(key, list), list) else []
 
-        return parsed
-    except Exception as e:
-        return [{"city": city, "error": str(e)}]
+        # Save in cache
+        CACHE[cache_key] = parsed
 
-# -------------------------------
-# Async endpoint
-# -------------------------------
-@router.post("/")
-async def get_trends(request: TrendsRequest):
-    tasks = [process_city(city, request.category) for city in request.cities]
-    results = await asyncio.gather(*tasks)
-    all_trends = [trend for city_trends in results for trend in city_trends]
-    return {"trends": all_trends}
+        return {"trends": parsed}
+
+    except Exception as e:
+        return {"trends": [{"error": str(e)}]}
