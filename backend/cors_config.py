@@ -1,15 +1,14 @@
 # cors_config.py
 from fastapi.middleware.cors import CORSMiddleware
 
-# Define which origins are allowed to connect.
-# In a production environment, you would restrict this to your actual frontend URL.
+# List of allowed frontend URLs (production and development)
 origins = [
     "http://localhost",
-    "http://localhost:3000",    # Default for create-react-app
-    "http://localhost:5173",    # Default for Vite
+    "http://localhost:3000",    # Create-React-App dev
+    "http://localhost:5173",    # Vite dev
     "http://127.0.0.1:5173",
-    "https://buddy-j3f5.vercel.app",  # <-- Add your Vercel frontend URL here
-    "https://test-f-ochre.vercel.app/",
+    "https://buddy-j3f5.vercel.app",
+    "https://test-f-ochre.vercel.app",
     "https://ecom-chi-lac.vercel.app",
     "https://saathi-ai.vercel.app"
 ]
@@ -17,12 +16,12 @@ origins = [
 def setup_cors(app):
     """
     Configures and adds CORS middleware to the FastAPI application.
+    Must explicitly list origins if allow_credentials=True.
     """
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Allow all origins
-        allow_credentials=True,
-        allow_methods=["*"],    # Allows all methods (GET, POST, etc.)
-        allow_headers=["*"],    # Allows all headers
+        allow_origins=origins,   # <-- Explicit list is required when using credentials
+        allow_credentials=True,  # Required if frontend sends cookies/auth headers
+        allow_methods=["*"],     # Allow all HTTP methods
+        allow_headers=["*"],     # Allow all headers
     )
-
